@@ -1,13 +1,15 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt
 from pymongo import MongoClient
 import openai
 import os
 from datetime import datetime
 import logging
+from dotenv import load_dotenv
+from db import get_postgres_connection, return_postgres_connection
 
 # Load environment variables
-from dotenv import load_dotenv
 load_dotenv()
 
 # Set up logging
@@ -18,9 +20,13 @@ logger = logging.getLogger(__name__)
 chat_bp = Blueprint('chat', __name__)
 
 # MongoDB connection
-client = MongoClient(os.getenv('MONGO_URI'))
-mongo_db = client['chatbot_db']
-chat_collection = mongo_db['chat_logs']
+try:
+    client = MongoClient(os.getenv('MONGO_URI'))
+    mongo_db = client['chatbot_db']
+    chat_collection = mongo_db['chat_logs']
+    logger.info("Connected to MongoDB.")
+except Exception as e:
+    logger.error(f"Failed to connect to MongoDB: {str(e)}")
 
 # OpenAI API Key
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -28,46 +34,33 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 @chat_bp.route('/ask', methods=['POST'])
 @jwt_required()
 def ask():
-    user_identity = get_jwt_identity()
     data = request.get_json()
-
-    if not data or 'question' not in data:
-        return jsonify({"error": "Invalid request. 'question' is required."}), 400
-
-    question = data['question'].strip()
+    question = data.get('question', '').strip().lower()
 
     if not question:
         return jsonify({"error": "Question cannot be empty."}), 400
 
-    # Use OpenAI to get a response
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=f"You are a language learning tutor specializing in helping users learn new languages. "
-                   f"Answer the user's question in a way that teaches them something new about the language they are learning. "
-                   f"Provide examples, translations, grammar tips, or help with vocabulary. The user's question: {question}",
-            max_tokens=150,
-            temperature=0.7,
-            n=1
-        )
+        # Connect to the database
+        conn = get_postgres_connection()
+        cursor = conn.cursor()
 
-        answer = response.choices[0].text.strip()
+        # Fetch the response from the database
+        cursor.execute("SELECT answer FROM responses WHERE question = %s", (question,))
+        result = cursor.fetchone()
 
-        # Log the conversation in MongoDB
-        log_entry = {
-            "user_id": user_identity,
-            "question": question,
-            "response": answer,
-            "timestamp": datetime.now()
-        }
-        chat_collection.insert_one(log_entry)
+        if result:
+            answer = result[0]
+        else:
+            answer = "I'm sorry, I don't have an answer to that."
 
+        # Close the database connection
+        cursor.close()
+        return_postgres_connection(conn)
+
+        # Return the response
         return jsonify({"answer": answer}), 200
 
-    except openai.error.OpenAIError as e:
-        logging.error(f"OpenAI API error: {str(e)}")
-        return jsonify({"error": "Error communicating with the AI service. Please try again later."}), 500
-
     except Exception as e:
-        logging.error(f"Unexpected error: {str(e)}")
+        print(f"Error during chatbot query: {e}")
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
