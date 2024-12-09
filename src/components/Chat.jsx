@@ -2,84 +2,130 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './Chat.css';
 
-function Chat() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [error, setError] = useState('');
-  const [language, setLanguage] = useState(''); // for new selected language
+const Chat = () => {
+    const [question, setQuestion] = useState('');
+    const [chatHistory, setChatHistory] = useState([]);
+    const [isTyping, setIsTyping] = useState(false);
 
+    const handleAsk = async () => {
+        if (!question.trim()) return;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+        // Add user's question to chat history
+        setChatHistory((prevHistory) => [
+            ...prevHistory,
+            { role: 'user', message: question },
+        ]);
+        setQuestion(''); // Clear input field
+        setIsTyping(true); // Indicate bot is typing
 
-    if (!input.trim()) {
-      setError('Please enter a valid question.');
-      return;
-    }
+        try {
+            // Make the backend request
+            const response = await axios.post(
+                'http://127.0.0.1:5000/chat/ask',
+                { question: question.trim() },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
+                    },
+                }
+            );
 
-    if (!language.trim()) {
-      setError('Please select a language to learn.');
-      return;
-    }
-
-    setError('');
-
-    const newMessage = { sender: 'user', text: input };
-    setMessages([...messages, newMessage]);
-
-    try {
-      const response = await axios.post('http://localhost:5000/chat/ask', { question: `${language}: ${input}` }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            const answer = response.data.answer?.trim() || ''; // Ensure no undefined or extra spaces
+            simulateTyping(answer);
+        } catch (error) {
+            console.error(error);
+            simulateTyping('An error occurred. Please try again.');
         }
-      });
+    };
 
-      if (response.status === 200) {
-        const aiMessage = { sender: 'ai', text: response.data.answer };
-        setMessages((prevMessages) => [...prevMessages, aiMessage]);
-      }
-    } catch (error) {
-      console.error("Error fetching AI response:", error);
-      setError('An error occurred while trying to get a response. Please try again.');
-    }
+    const simulateTyping = (text) => {
+        let index = 0;
 
-    setInput('');
-  };
+        // Add an initial empty bot message to chat history
+        setChatHistory((prevHistory) => [
+            ...prevHistory,
+            { role: 'bot', message: text[0] || '' }, // Initialize with the first character
+        ]);
 
-  return (
-    <div className="chat-container">
-      <h2>Chat with Your Language Tutor</h2>
-      <div className="language-selection">
-        <label>Select a language to learn:</label>
-        <select value={language} onChange={(e) => setLanguage(e.target.value)} required>
-          <option value="">--Select a Language--</option>
-          <option value="French">French</option>
-          <option value="Spanish">Spanish</option>
-          <option value="German">German</option>
-          <option value="Japanese">Japanese</option>
-        </select>
-      </div>
-      <div className="chat-box">
-        {messages.map((message, index) => (
-          <div key={index} className={`message ${message.sender === 'user' ? 'user-message' : 'ai-message'}`}>
-            <p>{message.text}</p>
-          </div>
-        ))}
-      </div>
-      {error && <p className="error-message">{error}</p>}
-      <form onSubmit={handleSubmit} className="chat-form">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question about language you want to learn"
-          required
-        />
-        <button type="submit">Send</button>
-      </form>
-    </div>
-  );
-}
+        // Typing simulation
+        const interval = setInterval(() => {
+            index++;
+
+            setChatHistory((prevHistory) => {
+                const lastMessage = prevHistory[prevHistory.length - 1];
+
+                // Safeguard: Update only the last bot message
+                if (lastMessage.role === 'bot') {
+                    return [
+                        ...prevHistory.slice(0, -1),
+                        {
+                            role: 'bot',
+                            message: lastMessage.message + (text[index] || ''),
+                        },
+                    ];
+                }
+                return prevHistory;
+            });
+
+            if (index >= text.length) {
+                clearInterval(interval);
+                setIsTyping(false);
+            }
+        }, 50); // Adjust typing speed
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('jwtToken');
+        window.location.href = '/signin';
+    };
+
+    return (
+        <div className="chat-page">
+            {/* Chat Header */}
+            <div className="chat-header">
+                <h2>Language Learning Bot</h2>
+                <button onClick={handleLogout} className="logout-button">
+                    Logout
+                </button>
+            </div>
+
+            {/* Chat Body */}
+            <div className="chat-body">
+                {chatHistory.map((chat, index) => (
+                    <div
+                        key={index}
+                        className={`chat-message ${chat.role === 'user' ? 'user' : 'bot'}`}
+                    >
+                        <p>{chat.message}</p>
+                    </div>
+                ))}
+                {isTyping && (
+                    <div className="chat-message bot">
+                        <p>...</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Chat Footer */}
+            <div className="chat-footer">
+                <textarea
+                    placeholder="Type your message..."
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    className="chat-input"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault(); // Prevent newline
+                            handleAsk();
+                        }
+                    }}
+                />
+                <button onClick={handleAsk} className="chat-send-button">
+                    Send
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export default Chat;

@@ -1,0 +1,132 @@
+/* Center the card on the screen */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #f9f9f9;
+}
+
+/* Card design */
+.auth-card {
+    width: 400px;
+    padding: 30px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Social login buttons */
+.social-login {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    color: white;
+}
+
+.social-login.facebook {
+    background-color: #1877f2;
+}
+
+.social-login.google {
+    background-color: #db4437;
+}
+
+/* Divider with "OR" text */
+.divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0;
+    position: relative;
+    font-size: 14px;
+    color: #666;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    height: 1px;
+    background: #ccc;
+    flex: 1;
+    margin: 0 10px;
+}
+
+/* Input fields */
+.auth-input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Remember me and Forgot Password */
+.auth-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    margin: 10px 0;
+    color: #666;
+}
+
+.auth-options input {
+    margin-right: 5px;
+}
+
+.forgot-password {
+    color: #007bff;
+    cursor: pointer;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+/* Primary login button */
+.auth-button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.auth-button:hover {
+    background-color: #0056b3;
+}
+
+/* Footer and Sign Up link */
+.auth-footer {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+}
+
+.auth-link {
+    color: #007bff;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
+}
+
+/* Error messages */
+.auth-error {
+    color: red;
+    font-size: 14px;
+    margin-top: 10px;
+}
